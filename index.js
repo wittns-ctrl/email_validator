@@ -1,6 +1,7 @@
 import express from 'express'
 import validator from 'validator'
-import dns from 'dns'
+import {promises as  dns} from 'dns'
+import axios from 'axios';
 import dotenv from 'dotenv'
 dotenv.config()
 
@@ -23,10 +24,15 @@ app.post('/email', async(req,res)=>{
         })
     }
     else{
-        res.status(200).json({
-            valid:true,
-            reason:`Domani accepts ${records.length}Mx records`
-        })
+       const apikey = process.env.MAILBOXLAYERAPI
+       const url = `https://apilayer.net/api/check?access_key=${apikey}&email=${email}`
+       const data = await axios.get(url);
+       if(data){
+       res.status(200).json(data.data)
+       }
+       else{
+        res.status(400).json({message:"email verification failed"})
+       }
     }
    }
    else{
@@ -34,6 +40,7 @@ app.post('/email', async(req,res)=>{
    }
     }catch(error){
         console.error("error message:",error.message)
+        res.status(500).json("something went wrong")
     }
 })
 app.listen(PORT,()=> {
