@@ -2,6 +2,7 @@ import express from 'express'
 import validator from 'validator'
 import {promises as  dns} from 'dns'
 import axios from 'axios';
+import nodemailer from 'nodemailer';
 import dotenv from 'dotenv'
 dotenv.config()
 
@@ -12,31 +13,43 @@ const PORT = process.env.PORT || 3000
 app.use(express.json())
 
 app.post('/email', async(req,res)=>{
-    const {email} = req.body;
+    const {email,Rec_email} = req.body;
     try{
-   const isValid = validator.isEmail(email)
-   if(isValid){
-    const domain = email.split('@')[1];
-    const records = await dns.resolveMx(domain);
-    if(records.length === 0){
-        res.status(400).json({valid:false,
-            reason:"domain has no Mx records"
-        })
-    }
-    else{
-       const apikey = process.env.MAILBOXLAYERAPI
-       const url = `https://apilayer.net/api/check?access_key=${apikey}&email=${email}`
-       const data = await axios.get(url);
-       if(data){
-       res.status(200).json(data.data)
-       }
-       else{
-        res.status(400).json({message:"email verification failed"})
-       }
-    }
+    const isValid = validator.isEmail(email)
+   if(!isValid){
+    res.status(400).json({message: "bad email synthax"})
    }
-   else{
-    res.status(400).json("bad email synthax")
+
+   const domain = email.split('@')[1]
+   const records = await dns.resolveMx(domain)
+
+   if(records.lenght === 0){
+    res.status(400).json({valid: false, reason: "domain has no Mx records" })
+   }
+
+   const apikey = process.env.MAILBOXLAYERAPI
+   const url = `https://apilayer.net/api/check?access_key=${apikey}&email=${email}`
+   const datum = await axios.get(url)
+   if(datum.data && datum.data.format_valid){
+    const transporter = nodemailer.createTransport({
+        service:"gmail",
+        auth:{
+            user:email,
+            pass: process.env.APP_PASSWORD
+        }
+    }
+    )
+    const mailOptions = {
+        from : email,
+        to:Rec_email,
+        subject: 'Hello',
+        text: "welcome to our company 🎉"
+    }
+    await transporter.sendMail(mailOptions)
+    res.status(200).json({message:"email sent successfully"})
+   }
+   else {
+    res.status(400).json({message: "email verification failed via API"})
    }
     }catch(error){
         console.error("error message:",error.message)
