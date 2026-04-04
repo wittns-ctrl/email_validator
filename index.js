@@ -17,24 +17,24 @@ app.post('/email', async(req,res)=>{
     try{
     const isValid = validator.isEmail(email)
    if(!isValid){
-    res.status(400).json({message: "bad email synthax"})
+    return res.status(400).json({message: "bad email synthax"})
    }
 
    const domain = email.split('@')[1]
    const records = await dns.resolveMx(domain)
 
-   if(records.lenght === 0){
+   if(records.length === 0){
     res.status(400).json({valid: false, reason: "domain has no Mx records" })
    }
 
    const apikey = process.env.MAILBOXLAYERAPI
    const url = `https://apilayer.net/api/check?access_key=${apikey}&email=${email}`
    const datum = await axios.get(url)
-   if(datum.data && datum.data.format_valid){
+   if(datum.data.mx_found && datum.data.smtp_check){
     const transporter = nodemailer.createTransport({
         service:"gmail",
         auth:{
-            user:email,
+            user:process.env.EMAIL,
             pass: process.env.APP_PASSWORD
         }
     }
